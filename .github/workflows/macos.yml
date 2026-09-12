@@ -21,8 +21,25 @@ jobs:
           echo "=== Runner Information ==="
           sw_vers
           echo "Architecture: $(uname -m)"
-          echo "User: $(whoami)"
           echo "=========================="
+
+      - name: Connect Runner to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: latest
+
+      - name: Show Tailscale Address
+        run: |
+          echo "=========================================="
+          echo "TAILSCALE VNC CONNECTION"
+          echo "=========================================="
+          echo "IPv4:"
+          tailscale ip -4
+          echo ""
+          echo "Hostname:"
+          tailscale status
+          echo "=========================================="
 
       - name: Setting Up the MacOS Environment
         env:
@@ -32,9 +49,26 @@ jobs:
         run: |
           source macos-run.sh "$MAC_USER_PASSWORD" "$VNC_PASSWORD" "$MAC_REALNAME"
 
+      - name: Verify VNC
+        run: |
+          echo "Testing local VNC..."
+          nc -vz 127.0.0.1 5900
+
+          echo ""
+          echo "Tailscale IPv4:"
+          tailscale ip -4
+
+          echo ""
+          echo "=========================================="
+          echo "CONNECT FROM ANDROID USING THE"
+          echo "TAILSCALE IPv4 ADDRESS ABOVE"
+          echo "PORT: 5900"
+          echo "USERNAME: koolisw"
+          echo "=========================================="
+
       - name: Keep Running MacOS System
         run: |
           echo "MacOS system is running."
-          echo "The Bore VNC endpoint is shown above."
+          echo "Tailscale connection is active."
           echo "Keeping runner alive for 6 hours..."
           sleep 6h
