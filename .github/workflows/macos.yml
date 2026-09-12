@@ -54,6 +54,22 @@ jobs:
         run: |
           source macos-run.sh "$MAC_USER_PASSWORD" "$VNC_PASSWORD" "$MAC_REALNAME"
 
+      - name: Activate Mac GUI
+        run: |
+          echo "Activating graphical session..."
+          caffeinate -dimsu &
+          
+          echo "Console user:"
+          stat -f "%Su" /dev/console || true
+
+          echo "Launching Safari..."
+          open -a Safari https://www.roblox.com || true
+
+          echo "Restarting Screen Sharing..."
+          sudo launchctl kickstart -k system/com.apple.screensharing || true
+
+          sleep 10
+
       - name: Verify VNC
         run: |
           echo "Testing VNC..."
