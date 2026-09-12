@@ -70,6 +70,32 @@ jobs:
 
           sleep 10
 
+      - name: Diagnose macOS GUI
+        run: |
+          echo "=== CONSOLE USER ==="
+          stat -f "%Su" /dev/console || true
+
+          echo "=== USERS ==="
+          who || true
+
+          echo "=== DISPLAY ==="
+          echo "DISPLAY=$DISPLAY"
+          echo "HOME=$HOME"
+          echo "USER=$USER"
+
+          echo "=== GRAPHICAL SESSION ==="
+          launchctl print system/com.apple.loginwindow 2>&1 | head -40 || true
+
+          echo "=== SCREENSHARING ==="
+          sudo launchctl print system/com.apple.screensharing 2>&1 | head -40 || true
+
+          echo "=== DISPLAY INFO ==="
+          system_profiler SPDisplaysDataType 2>&1 || true
+
+          echo "=== TEST SCREEN ==="
+          screencapture -x /tmp/test-screen.png 2>&1 || true
+          ls -lh /tmp/test-screen.png 2>&1 || true
+
       - name: Verify VNC
         run: |
           echo "Testing VNC..."
