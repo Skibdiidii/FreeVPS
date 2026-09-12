@@ -1,33 +1,81 @@
-#macos-run.sh MAC_USER_PASSWORD VNC_PASSWORD NGROK_AUTH_TOKEN MAC_REALNAME
+#!/bin/bash
+# macos-run.sh MAC_USER_PASSWORD VNC_PASSWORD MAC_REALNAME
 
-#disable spotlight indexing
+# Disable Spotlight indexing
 sudo mdutil -i off -a
 
-#Create new account
+# Create user
 sudo dscl . -create /Users/koolisw
 sudo dscl . -create /Users/koolisw UserShell /bin/bash
-sudo dscl . -create /Users/koolisw RealName $4
+sudo dscl . -create /Users/koolisw RealName "$3"
 sudo dscl . -create /Users/koolisw UniqueID 1001
 sudo dscl . -create /Users/koolisw PrimaryGroupID 80
 sudo dscl . -create /Users/koolisw NFSHomeDirectory /Users/koolisw
-sudo dscl . -passwd /Users/koolisw $1
-sudo dscl . -passwd /Users/koolisw $1
+sudo dscl . -passwd /Users/koolisw "$1"
 sudo createhomedir -c -u koolisw > /dev/null
-sudo dscl . -append /Groups/admin GroupMembership username
 
-#Enable VNC
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -configure -allowAccessFor -allUsers -privs -all
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -configure -clientopts -setvnclegacy -vnclegacy yes 
+# Add user to admin group
+sudo dscl . -append /Groups/admin GroupMembership koolisw
 
-echo $2 | perl -we 'BEGIN { @k = unpack "C*", pack "H*", "1734516E8BA8C5E2FF1C39567390ADCA"}; $_ = <>; chomp; s/^(.{8}).*/$1/; @p = unpack "C*", $_; foreach (@k) { printf "%02X", $_ ^ (shift @p || 0) }; print "\n"' | sudo tee /Library/Preferences/com.apple.VNCSettings.txt
+# Enable VNC
+sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+  -configure -allowAccessFor -allUsers -privs -all
 
-#Start VNC/reset changes
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -restart -agent -console
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate
+sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+  -configure -clientopts -setvnclegacy -vnclegacy yes
 
-#install ngrok
-brew install --cask ngrok
+# Set VNC password
+echo "$2" | perl -we 'BEGIN { @k = unpack "C*", pack "H*", "1734516E8BA8C5E2FF1C39567390ADCA"}; $_ = <>; chomp; s/^(.{8}).*/$1/; @p = unpack "C*", $_; foreach (@k) { printf "%02X", $_ ^ (shift @p || 0) }; print "\n"' \
+  | sudo tee /Library/Preferences/com.apple.VNCSettings.txt > /dev/null
 
-#configure ngrok and start it
-ngrok authtoken $3
-ngrok tcp 5900 --region=ap &
+# Restart VNC
+sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+  -restart -agent -console
+
+sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+  -activate
+
+# Install Bore
+brew install bore-cli
+
+# Wait for VNC
+echo "Waiting for VNC server..."
+
+for i in {1..30}; do
+    if nc -z 127.0.0.1 5900 2>/dev/null; then
+        echo "VNC is listening on port 5900."
+        break
+    fi
+
+    sleep 2
+done
+
+# Start Bore
+echo "Starting Bore tunnel..."
+
+bore local 5900 --to bore.pub > "$HOME/bore.log" 2>&1 &
+
+BORE_PID=$!
+
+# Wait for Bore endpoint
+for i in {1..30}; do
+    if grep -q "listening at" "$HOME/bore.log" 2>/dev/null; then
+        echo ""
+        echo "=============================="
+        echo "BORE VNC CONNECTION:"
+        grep "listening at" "$HOME/bore.log"
+        echo "=============================="
+        echo ""
+        break
+    fi
+
+    if ! kill -0 "$BORE_PID" 2>/dev/null; then
+        echo "Bore exited unexpectedly:"
+        cat "$HOME/bore.log"
+        exit 1
+    fi
+
+    sleep 2
+done
+
+echo "MacOS VNC is ready."
