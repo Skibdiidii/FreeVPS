@@ -10,10 +10,19 @@ defaults:
 jobs:
   build:
     name: MacOS Build
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Runner Information
+        run: |
+          echo "=== Runner Information ==="
+          sw_vers
+          echo "Architecture: $(uname -m)"
+          echo "User: $(whoami)"
+          echo "=========================="
 
       - name: Setting Up the MacOS Environment
         env:
@@ -26,5 +35,6 @@ jobs:
       - name: Keep Running MacOS System
         run: |
           echo "MacOS system is running."
-          echo "The Bore VNC endpoint should be shown above."
+          echo "The Bore VNC endpoint is shown above."
+          echo "Keeping runner alive for 6 hours..."
           sleep 6h
