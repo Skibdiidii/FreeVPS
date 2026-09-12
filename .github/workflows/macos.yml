@@ -72,6 +72,40 @@ jobs:
 
       - name: Diagnose macOS GUI
         run: |
+          {
+            echo "## macOS GUI Diagnostic"
+            echo ""
+            echo "### Console user"
+            stat -f "%Su" /dev/console || true
+
+            echo ""
+            echo "### Logged-in users"
+            who || true
+
+            echo ""
+            echo "### Display"
+            echo "DISPLAY=$DISPLAY"
+            echo "HOME=$HOME"
+            echo "USER=$USER"
+
+            echo ""
+            echo "### LoginWindow"
+            launchctl print system/com.apple.loginwindow 2>&1 | head -40 || true
+
+            echo ""
+            echo "### Screen Sharing"
+            sudo launchctl print system/com.apple.screensharing 2>&1 | head -40 || true
+
+            echo ""
+            echo "### Displays"
+            system_profiler SPDisplaysDataType 2>&1 || true
+
+            echo ""
+            echo "### Screenshot test"
+            screencapture -x /tmp/test-screen.png 2>&1 || true
+            ls -lh /tmp/test-screen.png 2>&1 || true
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
           echo "=== CONSOLE USER ==="
           stat -f "%Su" /dev/console || true
 
