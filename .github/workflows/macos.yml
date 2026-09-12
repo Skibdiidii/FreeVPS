@@ -16,30 +16,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show Runner Information
+      - name: Install Tailscale
         run: |
-          echo "=== Runner Information ==="
-          sw_vers
-          echo "Architecture: $(uname -m)"
-          echo "=========================="
+          brew install --quiet tailscale
+          sudo brew services start tailscale
 
-      - name: Connect Runner to Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          version: latest
+          echo "Waiting for Tailscale..."
+          for i in {1..30}; do
+            if tailscale version >/dev/null 2>&1; then
+              echo "Tailscale is ready."
+              break
+            fi
+            sleep 2
+          done
 
-      - name: Show Tailscale Address
+      - name: Connect Tailscale
+        env:
+          TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
         run: |
+          sudo tailscale up \
+            --authkey="$TAILSCALE_AUTHKEY" \
+            --accept-dns=false
+
           echo "=========================================="
-          echo "TAILSCALE VNC CONNECTION"
+          echo "TAILSCALE CONNECTED"
           echo "=========================================="
-          echo "IPv4:"
+
           tailscale ip -4
           echo ""
-          echo "Hostname:"
           tailscale status
-          echo "=========================================="
 
       - name: Setting Up the MacOS Environment
         env:
@@ -51,7 +56,7 @@ jobs:
 
       - name: Verify VNC
         run: |
-          echo "Testing local VNC..."
+          echo "Testing VNC..."
           nc -vz 127.0.0.1 5900
 
           echo ""
@@ -60,15 +65,13 @@ jobs:
 
           echo ""
           echo "=========================================="
-          echo "CONNECT FROM ANDROID USING THE"
-          echo "TAILSCALE IPv4 ADDRESS ABOVE"
-          echo "PORT: 5900"
-          echo "USERNAME: koolisw"
+          echo "VNC CONNECTION"
+          echo "=========================================="
+          echo "Address: $(tailscale ip -4):5900"
+          echo "Username: koolisw"
           echo "=========================================="
 
-      - name: Keep Running MacOS System
+      - name: Keep MacOS Running
         run: |
-          echo "MacOS system is running."
-          echo "Tailscale connection is active."
-          echo "Keeping runner alive for 6 hours..."
+          echo "MacOS + VNC + Tailscale are running."
           sleep 6h
